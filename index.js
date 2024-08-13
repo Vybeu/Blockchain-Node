@@ -1,30 +1,27 @@
 // index.js
-const Chain = require('./node/chain');
+const blockchain = require('./node/blockchain');
 const Wallet = require('./wallet/wallet');
 const mine = require('./miner/miningBlock');
 const { addPeer, syncChain } = require('./node/sync');
-const Peer = require('./node/peer');
 
-const myChain = new Chain();
-const myWallet = new Wallet(myChain);
+const myWallet = new Wallet(blockchain);
 
 // Example usage
 console.log('Mining block...');
-mine(myChain);
+mine(blockchain);
 console.log('Block mined.');
 
 console.log('Wallet balance:', myWallet.checkBalance());
 
-// Example initialization
-console.log('Initializing blockchain node...');
-
-// Optionally, sync with a predefined peer at startup
+// Example sync with a predefined peer at startup (optional)
 const initialPeer = 'http://localhost:3001';
 addPeer(initialPeer);
-syncChain(myChain, initialPeer).then(() => {
-  console.log('Blockchain synced with initial peer.');
-}).catch(error => {
-  console.log('Failed to sync with initial peer:', error.message);
-});
+syncChain(blockchain, initialPeer)
+  .then(() => {
+    console.log('Blockchain synced with initial peer.');
+  })
+  .catch((error) => {
+    console.log('Failed to sync with initial peer:', error.message);
+  });
 
-console.log('Blockchain:', JSON.stringify(myChain, null, 2));
+console.log('Blockchain:', JSON.stringify(blockchain, null, 2));

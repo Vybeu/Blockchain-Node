@@ -1,5 +1,5 @@
 // node/block.js
-const { calculateHash } = require('../utils/hash');
+const { generateHash } = require('../utils/hash');
 
 class Block {
   constructor(index, timestamp, transactions, previousHash = '') {
@@ -12,11 +12,13 @@ class Block {
   }
 
   calculateHash() {
-    return calculateHash(this.index + this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce);
+    return generateHash(this.index + this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce);
   }
 
   mineBlock(difficulty) {
-    while (this.hash.substring(0, difficulty) !== Array(difficulty + 1).join('0')) {
+    const target = Array(difficulty + 1).join('0'); // Creates a string of 'difficulty' zeroes
+
+    while (this.hash.substring(0, difficulty) !== target) {
       this.nonce++;
       this.hash = this.calculateHash();
     }

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Wallet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        #walletInfo, #transactionInfo {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Blockchain Wallet</h1>
+    <button onclick="createWallet()">Create Wallet</button>
+
+    <div id="walletInfo" style="display:none;">
+        <h2>Wallet Created</h2>
+        <p><strong>Public Key:</strong> <span id="publicKey"></span></p>
+        <p><strong>Private Key:</strong> <span id="privateKey"></span></p>
+        <p><strong>Balance:</strong> <span id="balance"></span> coins</p>
+    </div>
+
+    <div id="transactionForm">
+        <h2>Get Transaction Details</h2>
+        <input type="text" id="transactionHash" placeholder="Enter transaction hash">
+        <button onclick="getTransaction()">Get Transaction</button>
+    </div>
+
+    <div id="transactionInfo" style="display:none;">
+        <h2>Transaction Details</h2>
+        <p><strong>From Address:</strong> <span id="fromAddress"></span></p>
+        <p><strong>To Address:</strong> <span id="toAddress"></span></p>
+        <p><strong>Amount:</strong> <span id="amount"></span> coins</p>
+        <p><strong>Hash:</strong> <span id="hash"></span></p>
+    </div>
+
+    <script>
+        async function createWallet() {
+            try {
+                const response = await fetch('/wallet/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create wallet');
+                }
+
+                const walletData = await response.json();
+                
+                document.getElementById('publicKey').textContent = walletData.publicKey;
+                document.getElementById('privateKey').textContent = walletData.privateKey;
+                document.getElementById('balance').textContent = walletData.balance;
+
+                document.getElementById('walletInfo').style.display = 'block';
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function getTransaction() {
+            const transactionHash = document.getElementById('transactionHash').value;
+            if (!transactionHash) {
+                alert('Please enter a transaction hash.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/transactions/${transactionHash}`);
+
+                if (!response.ok) {
+                    throw new Error('Transaction not found');
+                }
+
+                const transaction = await response.json();
+
+                document.getElementById('fromAddress').textContent = transaction.fromAddress;
+                document.getElementById('toAddress').textContent = transaction.toAddress;
+                document.getElementById('amount').textContent = transaction.amount;
+                document.getElementById('hash').textContent = transaction.hash;
+
+                document.getElementById('transactionInfo').style.display = 'block';
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+
+</body>
+</html>

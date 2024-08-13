@@ -4,6 +4,7 @@ const Block = require('./block');
 class Chain {
   constructor() {
     this.blocks = [this.createGenesisBlock()];
+    this.difficulty = 4; // Set a reasonable difficulty level
   }
 
   createGenesisBlock() {
@@ -16,8 +17,15 @@ class Chain {
 
   addBlock(newBlock) {
     newBlock.previousHash = this.getLatestBlock().hash;
-    newBlock.mineBlock(4); // Example difficulty level
+    newBlock.mineBlock(this.difficulty); // Ensure difficulty is passed here
     this.blocks.push(newBlock);
+  }
+
+  mineBlock(transactions, minerAddress) {
+    const newBlock = new Block(this.blocks.length, Date.now(), transactions, this.getLatestBlock().hash);
+    newBlock.mineBlock(this.difficulty); // Pass a reasonable difficulty
+    this.addBlock(newBlock);
+    return newBlock;
   }
 }
 

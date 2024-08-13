@@ -1,27 +1,26 @@
-// wallet/wallet.js
-const { generateKeyPair } = require('./keys');
-const { calculateBalance } = require('../node/balance');
+const crypto = require('crypto');
+const { calculateBalance } = require('../node/balance'); // Ensure this import is correct
 
 class Wallet {
   constructor(chain) {
+    this.privateKey = this.generatePrivateKey();
+    this.publicKey = this.generatePublicKey(this.privateKey);
     this.chain = chain;
-    this.privateKey = generatePrivateKey();
-    this.publicKey = generatePublicKey(this.privateKey);
+  }
+
+  generatePrivateKey() {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  generatePublicKey(privateKey) {
+    const keyPair = crypto.createECDH('secp256k1');
+    keyPair.setPrivateKey(privateKey, 'hex');
+    return keyPair.getPublicKey('hex');
   }
 
   checkBalance() {
     return calculateBalance(this.publicKey, this.chain);
   }
-
-  // Other wallet methods...
-}
-
-function generatePrivateKey() {
-  // Implementation for generating a private key...
-}
-
-function generatePublicKey(privateKey) {
-  // Implementation for generating a public key...
 }
 
 module.exports = Wallet;
