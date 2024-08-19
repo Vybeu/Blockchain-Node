@@ -24,6 +24,15 @@
             max-width: 500px;
             text-align: center;
         }
+        #transactionForm, #transactionResult {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+        }
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -56,6 +65,24 @@
         <p><strong>To Address:</strong> <span id="toAddress"></span></p>
         <p><strong>Amount:</strong> <span id="amount"></span> coins</p>
         <p><strong>Hash:</strong> <span id="hash"></span></p>
+    </div>
+
+    <h1>Blockchain Text Submission</h1>
+
+    <!-- Form to submit text -->
+    <div id="transactionForm">
+        <h2>Add Text to Blockchain</h2>
+        <form id="textForm">
+            <input type="text" id="textInput" placeholder="Enter your text" required>
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <!-- Section to display the transaction result -->
+    <div id="transactionResult" style="display:none;">
+        <h2>Transaction Added</h2>
+        <p><strong>Transaction Hash:</strong> <span id="transactionHash"></span></p>
+        <p>Check the console for more details.</p>
     </div>
 
     <script>
@@ -110,6 +137,38 @@
                 alert('Error: ' + error.message);
             }
         }
+
+        document.getElementById('textForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const text = document.getElementById('textInput').value;
+
+            try {
+                const response = await fetch('/transactions/add-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add transaction');
+                }
+
+                const result = await response.json();
+
+                // Display the transaction hash
+                document.getElementById('transactionHash').textContent = result.hash;
+                document.getElementById('transactionResult').style.display = 'block';
+
+                // Clear the input field
+                document.getElementById('textInput').value = '';
+
+                // Log the block details in the console
+                console.log('Block details:', result.block);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
     </script>
 
 </body>

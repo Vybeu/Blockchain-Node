@@ -76,17 +76,20 @@ app.post('/peers/connect', async (req, res) => {
 });
 
 // Route to notify peers of a new block
+// Route to notify peers of a new block
 app.post('/peers/notify-new-block', async (req, res) => {
   const newBlock = req.body;
 
-  // Validate and add the new block to the blockchain if it's valid
+  console.log('Received new block:', newBlock);
+
   const latestBlock = blockchain.getLatestBlock();
 
+  // Check if the new block extends the chain
   if (newBlock.previousHash === latestBlock.hash && newBlock.index === latestBlock.index + 1) {
     blockchain.addBlock(newBlock);
     console.log('New block added to the chain:', newBlock);
 
-    // Remove confirmed transactions from the pending pool
+    // Remove confirmed transactions from pending pool
     newBlock.transactions.forEach(tx => {
       const index = pendingTransactions.findIndex(pendingTx => pendingTx.hash === tx.hash);
       if (index !== -1) {
@@ -96,16 +99,15 @@ app.post('/peers/notify-new-block', async (req, res) => {
 
     confirmedTransactions.push(...newBlock.transactions);
 
-    // Notify connected peers of the new block (optional, if you want to propagate further)
+    // Notify other peers of the new block
     peers.forEach(async (peerUrl) => {
-      if (peerUrl !== req.get('host')) {  // Avoid notifying the peer who already sent the block
+      if (peerUrl !== `http://localhost:${port}`) { // Prevent self-notification
         try {
           await fetch(`${peerUrl}/peers/notify-new-block`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newBlock),
           });
-          console.log(`Notified peer ${peerUrl} of new block.`);
         } catch (error) {
           console.error(`Failed to notify peer ${peerUrl} of new block:`, error.message);
         }
@@ -114,7 +116,7 @@ app.post('/peers/notify-new-block', async (req, res) => {
 
     res.json({ message: 'New block accepted and chain updated' });
   } else {
-    // If the new block doesn't extend the chain, trigger a full sync
+    // The block does not fit the current chain, trigger a full sync
     console.log('Received block that does not extend the chain. Triggering sync...');
     await fetch(`http://localhost:${port}/peers/sync`, { method: 'POST' });
 
@@ -257,31 +259,101 @@ app.get('/info', (req, res) => {
   });
   
   // POST /transactions/send
+  const Transaction = require('./node/transaction');
+
   app.post('/transactions/send', (req, res) => {
-  const { fromAddress, toAddress, amount } = req.body;
-  const transaction = { fromAddress, toAddress, amount, hash: generateHash(fromAddress + toAddress + amount) };
-  pendingTransactions.push(transaction);
-  res.json(transaction);
+    const { fromAddress, toAddress, amount } = req.body;
+  
+    try {
+      // Create the wallet object for the sender
+      const senderWallet = new Wallet(blockchain);
+  
+      // Create and sign the transaction
+      const transaction = senderWallet.createTransaction(toAddress, amount);
+  
+      // Add the transaction to the pending transactions
+      pendingTransactions.push(transaction);
+  
+      // Broadcast the transaction to peers
+      peers.forEach(async (peerUrl) => {
+        try {
+          await fetch(`${peerUrl}/transactions/receive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transaction),
+          });
+        } catch (error) {
+          console.error(`Failed to broadcast transaction to peer ${peerUrl}:`, error.message);
+        }
+      });
+  
+      res.json({ message: 'Transaction created and broadcasted', transaction });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Route to receive the transaction
+  app.post('/transactions/receive', (req, res) => {
+    const transactionData = req.body;
+    const transaction = new Transaction(
+      transactionData.fromAddress,
+      transactionData.toAddress,
+      transactionData.amount
+    );
+  
+    transaction.signature = transactionData.signature;
+    transaction.hash = transactionData.hash;
+  
+    try {
+      if (!transaction.isValid()) {
+        throw new Error('Invalid transaction!');
+      }
+  
+      // Only add if it's not already in the pool
+      if (!pendingTransactions.some(tx => tx.hash === transaction.hash)) {
+        pendingTransactions.push(transaction);
+        console.log('Received and added a new transaction:', transaction);
+      }
+  
+      res.json({ message: 'Transaction received and added' });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
   });
 
 // Route to create a wallet
 app.post('/wallet/create', (req, res) => {
   const newWallet = new Wallet(blockchain);
   const initialDeposit = 100;
-
+  
   console.log('New Wallet Created:', newWallet.publicKey); // Debugging log
 
   const transaction = {
-    fromAddress: "system",
+    fromAddress: "system", // Use a string to represent the "system"
     toAddress: newWallet.publicKey,
     amount: initialDeposit,
-    hash: generateHash("system" + newWallet.publicKey + initialDeposit.toString())
+    hash: generateHash("system" + newWallet.publicKey + initialDeposit.toString()) // Ensure everything is a string
   };
 
-  confirmedTransactions.push(transaction);
+  pendingTransactions.push(transaction);
 
+  // Create and mine a new block
   const newBlock = blockchain.mineBlock([transaction], 'system');
   console.log('New block mined:', newBlock);
+
+  // Synchronize with peers
+  peers.forEach(async (peerUrl) => {
+    try {
+      await fetch(`${peerUrl}/peers/notify-new-block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBlock),
+      });
+    } catch (error) {
+      console.error(`Failed to notify peer ${peerUrl} of new block:`, error.message);
+    }
+  });
 
   res.json({
     privateKey: newWallet.privateKey,
@@ -321,11 +393,50 @@ app.post('/mining/submit-mined-block', (req, res) => {
   res.json({ message: 'Mined block accepted' });
 });
 
+app.post('/transactions/add-text', (req, res) => {
+  const { text } = req.body;
+
+  // Generate a transaction with a hash based on the text input
+  const transaction = {
+    fromAddress: "system", // A default address to represent the system
+    toAddress: "user", // You can set this to something meaningful
+    amount: 0, // Since it's text, there’s no actual coin transfer
+    hash: generateHash(text),
+    text: text // Storing the text as part of the transaction
+  };
+
+  // Add the transaction to pending transactions
+  pendingTransactions.push(transaction);
+
+  // Automatically mine a block with this transaction
+  const newBlock = blockchain.mineBlock([transaction], 'system');
+  console.log('New block mined with text transaction:', newBlock);
+
+  // Broadcast the block to peers
+  peers.forEach(async (peerUrl) => {
+    try {
+      await fetch(`${peerUrl}/peers/notify-new-block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBlock),
+      });
+    } catch (error) {
+      console.error(`Failed to notify peer ${peerUrl} of new block:`, error.message);
+    }
+  });
+
+  // Respond with the transaction hash and block details
+  res.json({
+    message: 'Transaction added and block mined',
+    transactionHash: transaction.hash,
+    block: newBlock
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 
-  // Automatically connect to peers and sync on startup
   const knownPeers = ['http://localhost:3000']; // Add more known peers here
 
   knownPeers.forEach(async (peerUrl) => {

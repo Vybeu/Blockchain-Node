@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const { calculateBalance } = require('../node/balance'); // Ensure this import is correct
+const { calculateBalance } = require('../node/balance');
+const Transaction = require('../node/transaction');
 
 class Wallet {
   constructor(chain) {
@@ -20,6 +21,21 @@ class Wallet {
 
   checkBalance() {
     return calculateBalance(this.publicKey, this.chain);
+  }
+
+  createTransaction(toAddress, amount) {
+    if (this.checkBalance() < amount) {
+      throw new Error('Insufficient balance!');
+    }
+
+    const transaction = new Transaction(this.publicKey, toAddress, amount);
+
+    // Sign the transaction with this wallet's private key
+    const keyPair = crypto.createECDH('secp256k1');
+    keyPair.setPrivateKey(this.privateKey, 'hex');
+
+    transaction.signTransaction(keyPair);
+    return transaction;
   }
 }
 

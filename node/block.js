@@ -16,12 +16,15 @@ class Block {
   }
 
   mineBlock(difficulty) {
-    const target = Array(difficulty + 1).join('0'); // Creates a string of 'difficulty' zeroes
-
+    console.log(`Mining block with difficulty ${difficulty}...`); // Debugging log
+    const target = Array(difficulty + 1).join('0');
+  
     while (this.hash.substring(0, difficulty) !== target) {
       this.nonce++;
       this.hash = this.calculateHash();
     }
+  
+    console.log(`Block mined: ${this.hash}`);
   }
 }
 

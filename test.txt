@@ -1,0 +1,9 @@
+curl -X POST http://localhost:3000/transactions/send \
+  -H "Content-Type: application/json" \
+  -d '{
+        "fromAddress": "045d483f68dd097f73aa9a53a57688449a0a89a1c5f8a9295aee3487275dd2ad10e55c25dd243691be8c856ec77d3766650a80d602e1be7c756318adee5f55e695",
+        "toAddress": "04c6cfd1dc724f2d41b6eb727d15f838af8615771a61ca99dea4445d14c789cc407e3a945d66bf4a4bbbae833ebcbfbca32bab3270aaddc80d8879d7d8118cdb68",
+        "amount": 10
+      }'
+
+      
